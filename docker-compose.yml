@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=bitkoop_miner
+      - POSTGRES_USER=miner
+      - POSTGRES_PASSWORD=miner_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U miner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  miner:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - ./artifacts:/app/artifacts
+    environment:
+      - NETUID=${NETUID:-1}
+      - SUBTENSOR_NETWORK=${SUBTENSOR_NETWORK:-finney}
+      - SUBTENSOR_ADDRESS=${SUBTENSOR_ADDRESS:-wss://entrypoint-finney.opentensor.ai:443}
+      - WALLET_NAME=${WALLET_NAME:-default}
+      - HOTKEY_NAME=${HOTKEY_NAME:-default}
+      - CHECK_STALENESS_HOURS=${CHECK_STALENESS_HOURS:-24}
+      - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --reload
+
+volumes:
+  postgres_data:
