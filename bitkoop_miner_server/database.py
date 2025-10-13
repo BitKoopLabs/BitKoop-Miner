@@ -7,6 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from bitkoop_miner_server.config import get_config
 from bitkoop_miner_server.constants import JobStatus
+from bitkoop_miner_server.utils import to_iso_utc
 
 config = get_config()
 engine = create_engine(config.database_url)
@@ -64,7 +65,7 @@ def create_job(
             created_at=now
         )
         session.add(job)
-    return {"job_id": job_id, "status": status, "job_start_time": now.isoformat() + "Z"}
+    return {"job_id": job_id, "status": status, "job_start_time": to_iso_utc(now)}
 
 
 def get_job(job_id: str) -> Optional[dict]:
@@ -77,7 +78,7 @@ def get_job(job_id: str) -> Optional[dict]:
             "site_id": job.site_id,
             "coupon_code": job.coupon_code,
             "status": job.status,
-            "job_start_time": job.job_start_time.isoformat() + "Z",
+            "job_start_time": to_iso_utc(job.job_start_time),
             "result": job.result,
             "error": job.error,
         }
@@ -104,7 +105,7 @@ def get_coupon_stats(site_id: int, coupon_code: str) -> Optional[dict]:
             "site_id": stats.site_id,
             "coupon_code": stats.coupon_code,
             "run_count": stats.run_count,
-            "last_run_at": stats.last_run_at.isoformat() + "Z",
+            "last_run_at": to_iso_utc(stats.last_run_at),
             "last_job_id": stats.last_job_id,
         }
 

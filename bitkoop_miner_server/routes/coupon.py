@@ -35,20 +35,21 @@ async def check_coupon(
     stats = get_coupon_stats(request.site_id, request.coupon_code)
     forced_run = True
 
-    if stats:
-        last_run = datetime.fromisoformat(stats["last_run_at"].replace("Z", ""))
-        if not is_stale(last_run, config.check_staleness_hours):
-            forced_run = False
-            existing_job = get_job(stats["last_job_id"])
-            if existing_job:
-                return CouponCheckResponse(
-                    job_id=existing_job["job_id"],
-                    forced_run=forced_run,
-                    job_start_time=existing_job["job_start_time"],
-                    staleness_seconds=calculate_staleness_seconds(
-                        config.check_staleness_hours
-                    ),
-                )
+    if stats and not is_stale(
+        datetime.fromisoformat(stats["last_run_at"].replace("Z", "+00:00")),
+        config.check_staleness_hours,
+    ):
+        forced_run = False
+        existing_job = get_job(stats["last_job_id"])
+        if existing_job:
+            return CouponCheckResponse(
+                job_id=existing_job["job_id"],
+                forced_run=forced_run,
+                job_start_time=existing_job["job_start_time"],
+                staleness_seconds=calculate_staleness_seconds(
+                    config.check_staleness_hours
+                ),
+            )
 
     job_id = generate_job_id()
     job_data = create_job(
