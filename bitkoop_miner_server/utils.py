@@ -13,3 +13,7 @@ def is_stale(last_run_at: datetime, staleness_hours: int) -> bool:
 
 def calculate_staleness_seconds(staleness_hours: int) -> int:
     return staleness_hours * 3600
+
+
+def to_iso_utc(dt: datetime) -> str:
+    return dt.isoformat() + "Z"
