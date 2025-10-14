@@ -15,12 +15,6 @@ services:
 
   notary-server:
     image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.7
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:7047/healthcheck || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
 
   miner:
     image: ghcr.io/bitkooplabs/bitkoop-miner:latest
@@ -43,7 +37,7 @@ services:
       postgres:
         condition: service_healthy
       notary-server:
-        condition: service_healthy
+        condition: service_started
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --reload
