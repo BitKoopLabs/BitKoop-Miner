@@ -17,7 +17,7 @@ services:
     image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.7
 
   miner:
-    image: ghcr.io/bitkooplabs/bitkoop-miner:latest
+    build: .
     ports:
       - "8080:8080"
     volumes:
@@ -38,17 +38,7 @@ services:
         condition: service_healthy
       notary-server:
         condition: service_started
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
     command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --reload
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_LABEL_ENABLE=true
-    command: --interval 30
-
 
 volumes:
   postgres_data:
