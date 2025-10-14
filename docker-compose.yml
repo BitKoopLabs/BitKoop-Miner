@@ -14,7 +14,7 @@ services:
       retries: 5
 
   notary-server:
-    image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.7
+    image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.12
 
   miner:
     image: ghcr.io/bitkooplabs/bitkoop-miner:latest
@@ -30,6 +30,8 @@ services:
       - WALLET_NAME=${WALLET_NAME:-default}
       - HOTKEY_NAME=${HOTKEY_NAME:-default}
       - CHECK_STALENESS_HOURS=${CHECK_STALENESS_HOURS:-24}
+      - RUN_TIMEOUT_SECONDS=${RUN_TIMEOUT_SECONDS:-300}
+      - JOB_RETENTION_HOURS=${JOB_RETENTION_HOURS:-168}
       - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
       - TLSNOTARY_URL=${TLSNOTARY_URL:-http://notary-server:7047}
       - TLSNOTARY_MODE=${TLSNOTARY_MODE:-local}
@@ -40,7 +42,22 @@ services:
         condition: service_started
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --reload
+    command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --log-level info
+
+  miner-worker:
+    build: .
+    volumes:
+      - ./artifacts:/app/artifacts
+    environment:
+      - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
+      - TLSNOTARY_URL=${TLSNOTARY_URL:-http://notary-server:7047}
+      - TLSNOTARY_MODE=${TLSNOTARY_MODE:-local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notary-server:
+        condition: service_started
+    command: python -m bitkoop_miner_server.worker
   watchtower:
     image: containrrr/watchtower
     volumes:
