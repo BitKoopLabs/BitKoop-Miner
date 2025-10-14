@@ -226,5 +226,8 @@ artifacts/
 nul
 nodes.json
 
+FE*.json
+*attestation*.json
+
 # Proposal documents (planning only, not implementation)
 docs/queue-implementation-proposal.md

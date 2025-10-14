@@ -131,3 +131,24 @@ def upsert_coupon_stats(site_id: int, coupon_code: str, job_id: str):
                 last_job_id=job_id
             )
             session.add(stats)
+
+
+def get_pending_job() -> Optional[dict]:
+    with get_session() as session:
+        job = (
+            session.query(Job)
+            .filter(Job.status == JobStatus.PENDING)
+            .order_by(Job.created_at)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+            .first()
+        )
+        if not job:
+            return None
+        return {
+            "job_id": job.job_id,
+            "site_id": job.site_id,
+            "coupon_code": job.coupon_code,
+            "status": job.status,
+            "job_start_time": job.job_start_time,
+        }
