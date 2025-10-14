@@ -8,7 +8,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U miner"]
+      test: ["CMD-SHELL", "pg_isready -U miner -d bitkoop_miner"]
       interval: 5s
       timeout: 5s
       retries: 5
