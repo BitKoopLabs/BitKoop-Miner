@@ -42,7 +42,7 @@ services:
         condition: service_started
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    command: uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --log-level info
+    command: bash -lc "alembic upgrade head && uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --log-level info"
 
   miner-worker:
     image: ghcr.io/bitkooplabs/bitkoop-miner:latest

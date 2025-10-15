@@ -1,5 +1,3 @@
-from alembic import command
-from alembic.config import Config
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fiber.logging_utils import get_logger
@@ -10,10 +8,6 @@ from bitkoop_miner_server.models import ErrorDetail, ErrorResponse
 from bitkoop_miner_server.routes import coupon_router, health_router, job_router
 
 logger = get_logger(__name__)
-
-alembic_cfg = Config("alembic.ini")
-command.upgrade(alembic_cfg, "head")
-logger.info("Database migrations applied")
 
 app = factory_app(debug=True)
 
