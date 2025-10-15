@@ -226,7 +226,7 @@ artifacts/
 nul
 nodes.json
 
-FE*.json
+#FE*.json
 *attestation*.json
 
 # Proposal documents (planning only, not implementation)
