@@ -38,6 +38,20 @@ class CouponStats(Base):
     last_job_id = Column(String, nullable=True)
 
 
+class Site(Base):
+    __tablename__ = "sites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    base_url = Column(String, nullable=False)
+    status = Column(Integer, nullable=False, default=1)
+    config = Column(JSON, nullable=True)
+    miner_hotkey = Column(String, nullable=True)
+    api_url = Column(String, nullable=True)
+    total_coupon_slots = Column(Integer, nullable=False, default=15)
+    created_at = Column(DateTime, nullable=False, index=True)
+    updated_at = Column(DateTime, nullable=False)
+
+
 @contextmanager
 def get_session():
     session = SessionLocal()
@@ -151,4 +165,56 @@ def get_pending_job() -> Optional[dict]:
             "coupon_code": job.coupon_code,
             "status": job.status,
             "job_start_time": job.job_start_time,
+        }
+
+
+def upsert_site(
+    site_id: int,
+    base_url: str,
+    status: int,
+    miner_hotkey: Optional[str],
+    api_url: Optional[str],
+    config: Optional[dict],
+    total_coupon_slots: int,
+):
+    now = datetime.now(timezone.utc)
+    with get_session() as session:
+        site = session.query(Site).filter(Site.id == site_id).first()
+
+        if site:
+            site.base_url = base_url
+            site.status = status
+            site.miner_hotkey = miner_hotkey
+            site.api_url = api_url
+            site.config = config
+            site.total_coupon_slots = total_coupon_slots
+            site.updated_at = now
+        else:
+            site = Site(
+                id=site_id,
+                base_url=base_url,
+                status=status,
+                miner_hotkey=miner_hotkey,
+                api_url=api_url,
+                config=config,
+                total_coupon_slots=total_coupon_slots,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(site)
+
+
+def get_site(site_id: int) -> Optional[dict]:
+    with get_session() as session:
+        site = session.query(Site).filter(Site.id == site_id).first()
+        if not site:
+            return None
+        return {
+            "id": site.id,
+            "base_url": site.base_url,
+            "status": site.status,
+            "miner_hotkey": site.miner_hotkey,
+            "api_url": site.api_url,
+            "config": site.config,
+            "total_coupon_slots": site.total_coupon_slots,
         }

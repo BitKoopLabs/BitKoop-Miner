@@ -1,21 +1,56 @@
+import asyncio
+from contextlib import asynccontextmanager
+from functools import partial
+
 from alembic import command
 from alembic.config import Config
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fiber.logging_utils import get_logger
-from fiber.miner.server import factory_app
 
+from bitkoop_miner_server.config import get_config
 from bitkoop_miner_server.exceptions import AppException
 from bitkoop_miner_server.models import ErrorDetail, ErrorResponse
 from bitkoop_miner_server.routes import coupon_router, health_router, job_router
+from bitkoop_miner_server.tasks import start_sync_sites_task, stop_sync_sites_task
 
 logger = get_logger(__name__)
 
-alembic_cfg = Config("alembic.ini")
-command.upgrade(alembic_cfg, "head")
-logger.info("Database migrations applied")
 
-app = factory_app(debug=True)
+def run_migrations():
+    """Run database migrations."""
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    except Exception as e:
+        logger.warning(f"Migration may have already been applied: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    try:
+        config = get_config()
+        start_sync_sites_task(config.sync_sites_interval_seconds)
+        logger.info("Site sync task started")
+
+        logger.info("Application startup complete")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}")
+        raise
+
+    yield
+
+    stop_sync_sites_task()
+    logger.info("Site sync task stopped")
+
+
+app = FastAPI(
+    title="BitKoop Miner",
+    description="Miner service for BitKoop subnet",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 
 @app.exception_handler(AppException)
