@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 class CouponCheckRequest(BaseModel):
     coupon_code: str
     site_id: int
-    miner_hotkey: str
 
 
 class CouponCheckResponse(BaseModel):
