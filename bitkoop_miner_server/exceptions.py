@@ -33,3 +33,13 @@ class JobNotFoundError(AppException):
             message="Job not found",
             details={"job_id": job_id},
         )
+
+
+class SiteNotFoundError(AppException):
+    def __init__(self, site_id: int):
+        super().__init__(
+            status_code=404,
+            code="SITE_NOT_FOUND",
+            message="Site not found",
+            details={"site_id": site_id},
+        )

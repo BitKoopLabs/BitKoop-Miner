@@ -9,8 +9,10 @@ from bitkoop_miner_server.database import (
     create_job,
     get_coupon_stats,
     get_job,
+    get_site,
     upsert_coupon_stats,
 )
+from bitkoop_miner_server.exceptions import SiteNotFoundError
 from bitkoop_miner_server.models import CouponCheckRequest, CouponCheckResponse
 from bitkoop_miner_server.utils import (
     calculate_staleness_seconds,
@@ -27,6 +29,10 @@ async def check_coupon(
     _verified: dict = Depends(verify_request),
 ):
     config = get_config()
+
+    site = get_site(request.site_id)
+    if not site:
+        raise SiteNotFoundError(request.site_id)
 
     stats = get_coupon_stats(request.site_id, request.coupon_code)
     forced_run = True
