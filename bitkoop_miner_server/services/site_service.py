@@ -23,7 +23,7 @@ class SiteService:
                         site = SupervisorSite(**site_data)
                         upsert_site(
                             site_id=site.store_id,
-                            base_url=site.store_domain,
+                            domain=site.store_domain,
                             status=site.store_status,
                             miner_hotkey=site.miner_hotkey,
                             api_url=site.api_url,

@@ -1,28 +1,54 @@
-import asyncio
-import json
-from pathlib import Path
 from typing import Dict
+
+import httpx
+from fiber.logging_utils import get_logger
+
+from bitkoop_miner_server.config import get_config
+from bitkoop_miner_server.database import get_site
+
+logger = get_logger(__name__)
 
 
 async def execute_validation(job_id: str, site_id: int, coupon_code: str) -> Dict:
-    await asyncio.sleep(30)
+    config = get_config()
 
-    mock_file = Path("/app/FE512M1.75871226110500000000000000000000.json")
+    site = get_site(site_id)
+    if not site:
+        logger.error(f"Site {site_id} not found in database")
+        raise ValueError(f"Site {site_id} not found")
 
-    if mock_file.exists():
-        with open(mock_file, "r") as f:
-            attestation_data = json.load(f)
+    domain = site["domain"]
+    site_config = site.get("config") or {}
+    product_url = site_config.get("productUrl")
 
-        return attestation_data
-    else:
-        return {
-            "version": "0.1.0-alpha.12",
-            "data": "mock_attestation_data_" + job_id[:16],
-            "meta": {
-                "notaryUrl": "http://localhost:7047",
-                "websocketProxyUrl": "ws://127.0.0.1:55688",
-                "site_id": site_id,
-                "coupon_code": coupon_code,
-                "job_id": job_id,
-            }
-        }
+    filename = f"proof_{site_id}_{coupon_code}_{job_id}"
+    logger.info(f"Validating coupon {coupon_code} for domain {domain} (site_id={site_id})")
+
+    payload = {
+        "coupon": coupon_code,
+        "domain": domain,
+        "filename": filename
+    }
+
+    if product_url:
+        payload["productUrl"] = product_url
+
+    async with httpx.AsyncClient(timeout=config.run_timeout_seconds) as client:
+        response = await client.post(
+            f"{config.tls_js_url}/api/validate-coupon",
+            json=payload
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        if not result.get("success"):
+            logger.error(f"Validation failed: {result.get('error', 'Unknown error')}")
+            raise RuntimeError(f"Validation failed: {result.get('error', 'Unknown error')}")
+
+    logger.info(f"Validation successful for job {job_id}")
+
+    return {
+        "success": True,
+        "proof_filename": f"{filename}.json",
+        "validation_result": result
+    }

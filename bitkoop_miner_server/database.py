@@ -42,7 +42,7 @@ class Site(Base):
     __tablename__ = "sites"
 
     id = Column(Integer, primary_key=True, index=True)
-    base_url = Column(String, nullable=False)
+    domain = Column(String, nullable=False)
     status = Column(Integer, nullable=False, default=1)
     config = Column(JSON, nullable=True)
     miner_hotkey = Column(String, nullable=True)
@@ -170,7 +170,7 @@ def get_pending_job() -> Optional[dict]:
 
 def upsert_site(
     site_id: int,
-    base_url: str,
+    domain: str,
     status: int,
     miner_hotkey: Optional[str],
     api_url: Optional[str],
@@ -182,7 +182,7 @@ def upsert_site(
         site = session.query(Site).filter(Site.id == site_id).first()
 
         if site:
-            site.base_url = base_url
+            site.domain = domain
             site.status = status
             site.miner_hotkey = miner_hotkey
             site.api_url = api_url
@@ -192,7 +192,7 @@ def upsert_site(
         else:
             site = Site(
                 id=site_id,
-                base_url=base_url,
+                domain=domain,
                 status=status,
                 miner_hotkey=miner_hotkey,
                 api_url=api_url,
@@ -211,7 +211,7 @@ def get_site(site_id: int) -> Optional[dict]:
             return None
         return {
             "id": site.id,
-            "base_url": site.base_url,
+            "domain": site.domain,
             "status": site.status,
             "miner_hotkey": site.miner_hotkey,
             "api_url": site.api_url,
