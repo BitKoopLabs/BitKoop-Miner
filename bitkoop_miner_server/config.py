@@ -10,8 +10,6 @@ class Config:
     run_timeout_seconds: int
     job_retention_hours: int
     database_url: str
-    tlsnotary_url: str
-    tlsnotary_mode: str
     tls_js_url: str
     supervisor_api_url: str
     sync_sites_interval_seconds: int
@@ -27,8 +25,6 @@ def get_config() -> Config:
         database_url=os.getenv(
             "DATABASE_URL", "postgresql://miner:miner_pass@localhost:5432/bitkoop_miner"
         ),
-        tlsnotary_url=os.getenv("TLSNOTARY_URL", "http://localhost:7047"),
-        tlsnotary_mode=os.getenv("TLSNOTARY_MODE", "mock"),
         tls_js_url=os.getenv("TLS_JS_URL", "http://localhost:3001"),
         supervisor_api_url=os.getenv("SUPERVISOR_API_URL", "http://91.99.203.36/api"),
         sync_sites_interval_seconds=int(os.getenv("SYNC_SITES_INTERVAL_SECONDS", "600")),

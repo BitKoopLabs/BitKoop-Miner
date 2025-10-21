@@ -17,9 +17,7 @@ services:
     image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.12
 
   tls-js:
-    build:
-      context: ../tls-js
-      dockerfile: Dockerfile
+    image: ghcr.io/ydc-p-dev/tls-js:latest
     ports:
       - "3001:3001"
     environment:
@@ -30,6 +28,8 @@ services:
       - ./artifacts/proofs:/app/output/proofs
     depends_on:
       - notary-server
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/api/proofs || exit 1"]
       interval: 10s
@@ -53,8 +53,6 @@ services:
       - RUN_TIMEOUT_SECONDS=${RUN_TIMEOUT_SECONDS:-300}
       - JOB_RETENTION_HOURS=${JOB_RETENTION_HOURS:-168}
       - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
-      - TLSNOTARY_URL=${TLSNOTARY_URL:-http://notary-server:7047}
-      - TLSNOTARY_MODE=${TLSNOTARY_MODE:-mock}
       - TLS_JS_URL=${TLS_JS_URL:-http://tls-js:3001}
       - SUPERVISOR_API_URL=${SUPERVISOR_API_URL:-http://91.99.203.36/api}
       - SYNC_SITES_INTERVAL_SECONDS=${SYNC_SITES_INTERVAL_SECONDS:-600}
@@ -68,13 +66,11 @@ services:
     command: sh -c "alembic upgrade head && uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --log-level info"
 
   miner-worker:
-    build: .
+    image: ghcr.io/bitkooplabs/bitkoop-miner:latest
     volumes:
       - ./artifacts:/app/artifacts
     environment:
       - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
-      - TLSNOTARY_URL=${TLSNOTARY_URL:-http://notary-server:7047}
-      - TLSNOTARY_MODE=${TLSNOTARY_MODE:-mock}
       - TLS_JS_URL=${TLS_JS_URL:-http://tls-js:3001}
       - RUN_TIMEOUT_SECONDS=${RUN_TIMEOUT_SECONDS:-300}
     depends_on:
@@ -84,6 +80,8 @@ services:
         condition: service_started
       tls-js:
         condition: service_healthy
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     command: python -m bitkoop_miner_server.worker
   watchtower:
     image: containrrr/watchtower

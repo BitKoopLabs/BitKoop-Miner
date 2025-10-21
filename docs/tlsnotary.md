@@ -5,79 +5,100 @@ BitKoop Miner uses TLS Notary to create cryptographic attestations of coupon val
 ### Architecture
 
 ```
-Miner Python Service → TLS Notary Server (Docker) → Attestation
+Miner Python Service → TLS-JS Service → Notary Server → Attestation
 ```
+
+The miner uses a dedicated Node.js service (tls-js) to handle TLS notarization. This service:
+- Runs Playwright browser automation
+- Captures HTTP traffic during coupon validation
+- Requests attestations from the notary server
+- Returns cryptographic proofs to the miner
 
 ### Configuration
 
-Set via environment variables:
+TLS-JS service is configured via environment variables in `docker-compose.yml`:
 
-- `TLSNOTARY_URL` - Notary server URL (default: `http://notary-server:7047` in docker-compose)
-- `TLSNOTARY_MODE` - Mode of operation:
-  - `mock` - Returns mock attestations (development)
-  - `local` - Uses local notary-server container
-  - `hosted` - Uses public PSE notary at `notary.pse.dev`
+**Miner Services:**
+- `TLS_JS_URL` - TLS-JS service endpoint (default: `http://tls-js:3001`)
+
+**TLS-JS Service:**
+- `PORT` - Service port (default: `3001`)
+- `PROOFS_DIR` - Directory for storing proof files (default: `/app/output/proofs`)
+- `NOTARY_HOST` - Notary server URL (default: `http://notary-server:7047`)
 
 ### Docker Setup
 
-The `docker-compose.yml` includes a TLS Notary server:
+The `docker-compose.yml` includes both the TLS-JS service and notary server:
 
 ```yaml
 notary-server:
-  image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.7
+  image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.12
+
+tls-js:
+  build:
+    context: ../tls-js
+    dockerfile: Dockerfile
   ports:
-    - "7047:7047"
+    - "3001:3001"
+  environment:
+    - PORT=3001
+    - PROOFS_DIR=/app/output/proofs
+    - NOTARY_HOST=${NOTARY_HOST:-http://notary-server:7047}
+  volumes:
+    - ./artifacts/proofs:/app/output/proofs
+  depends_on:
+    - notary-server
 ```
 
 ### Usage
 
+The miner communicates with TLS-JS via HTTP API:
+
 ```python
-from bitkoop_miner_server.notary import create_attestation
-
-# Create attestation for a validation session
-attestation = await create_attestation(
-    job_id="01JBQXYZ...",
-    session_evidence={
-        "transcript": "...",
-        "server": "example.com",
-        "timestamp": "2025-01-15T10:30:00Z"
-    }
-)
-
-# Returns:
-# {
-#   "attestation_id": "attest_...",
-#   "commitment": "0x...",
-#   "notary_pubkey": "...",
-#   "version": "v0.1.0-alpha.7"
-# }
+# Executor calls TLS-JS service
+async with httpx.AsyncClient() as client:
+    response = await client.post(
+        f"{tls_js_url}/api/notarize",
+        json={
+            "url": "https://example.com/cart",
+            "method": "POST",
+            "headers": {...},
+            "body": {...}
+        },
+        timeout=300
+    )
+    proof_data = response.json()
 ```
 
-### Development vs Production
+The TLS-JS service returns:
+- Cryptographic proof of the HTTP session
+- Attestation data signed by the notary server
+- Evidence that can be verified by validators
 
-**Development (Mock Mode)**
-```bash
-export TLSNOTARY_MODE=mock
+### Proof Storage
+
+Proof files are stored in the `artifacts/proofs/` directory and mounted as a volume:
+
 ```
-- Returns mock attestations instantly
-- No real notarization
-- Useful for testing executor logic
-
-**Production (Local Notary)**
-```bash
-export TLSNOTARY_MODE=local
-export TLSNOTARY_URL=http://notary-server:7047
+artifacts/
+└── proofs/
+    ├── proof_01JBQXYZ....json
+    ├── proof_01JBQXYZ....json
+    └── ...
 ```
-- Uses containerized notary server
-- Real attestations
-- Full cryptographic proof
 
-**Production (Hosted Notary)**
-```bash
-export TLSNOTARY_MODE=hosted
-export TLSNOTARY_URL=https://notary.pse.dev/v0.1.0-alpha.7
-```
-- Uses PSE-hosted notary
-- Not recommended for production per TLS Notary docs
-- Useful for testing without running local notary
+These proofs contain:
+- Session transcript commitments
+- Notary signatures
+- Verification data for validators
 
+### Service Dependencies
+
+The validation flow requires all services to be healthy:
+
+1. **postgres** - Database for job tracking
+2. **notary-server** - TLS Notary attestation service
+3. **tls-js** - Browser automation and notarization
+4. **miner-worker** - Job executor that calls tls-js
+
+Health checks ensure services start in the correct order and are ready before processing jobs.
