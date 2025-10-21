@@ -20,8 +20,6 @@ services:
     build:
       context: ../tls-js
       dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
     environment:
       - PORT=3001
       - PROOFS_DIR=/app/output/proofs
