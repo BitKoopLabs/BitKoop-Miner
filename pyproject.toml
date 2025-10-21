@@ -1,0 +1,36 @@
+[project]
+name = "bitkoop-miner-server"
+version = "0.1.0"
+description = "BitKoop miner server for coupon validation with Playwright and TLS Notary"
+requires-python = ">=3.10"
+dependencies = [
+    "fiber[full] @ git+https://github.com/rayonlabs/fiber.git@2.4.1",
+    "uvicorn[standard]>=0.27.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "psycopg2-binary>=2.9.0",
+    "python-ulid>=2.0.0",
+    "pydantic>=2.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["bitkoop_miner_server"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = []

@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=bitkoop_miner
+      - POSTGRES_USER=miner
+      - POSTGRES_PASSWORD=miner_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U miner -d bitkoop_miner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  notary-server:
+    image: ghcr.io/tlsnotary/tlsn/notary-server:v0.1.0-alpha.12
+
+  tls-js:
+    build:
+      context: ../tls-js
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3001
+      - PROOFS_DIR=/app/output/proofs
+      - NOTARY_HOST=${NOTARY_HOST:-http://notary-server:7047}
+    volumes:
+      - ./artifacts/proofs:/app/output/proofs
+    depends_on:
+      - notary-server
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/api/proofs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  miner:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ~/.bittensor:/root/.bittensor
+      - ./bitkoop_miner_server:/app/bitkoop_miner_server
+    environment:
+      - NETUID=${NETUID:-1}
+      - SUBTENSOR_NETWORK=${SUBTENSOR_NETWORK:-finney}
+      - SUBTENSOR_ADDRESS=${SUBTENSOR_ADDRESS:-wss://entrypoint-finney.opentensor.ai:443}
+      - WALLET_NAME=${WALLET_NAME:-default}
+      - HOTKEY_NAME=${HOTKEY_NAME:-default}
+      - CHECK_STALENESS_HOURS=${CHECK_STALENESS_HOURS:-24}
+      - RUN_TIMEOUT_SECONDS=${RUN_TIMEOUT_SECONDS:-300}
+      - JOB_RETENTION_HOURS=${JOB_RETENTION_HOURS:-168}
+      - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
+      - TLS_JS_URL=${TLS_JS_URL:-http://tls-js:3001}
+      - SUPERVISOR_API_URL=${SUPERVISOR_API_URL:-http://91.99.203.36/api}
+      - SYNC_SITES_INTERVAL_SECONDS=${SYNC_SITES_INTERVAL_SECONDS:-600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notary-server:
+        condition: service_started
+    command: sh -c "alembic upgrade head && uvicorn bitkoop_miner_server.app:app --host 0.0.0.0 --port 8080 --reload"
+
+  miner-worker:
+    build: .
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./bitkoop_miner_server:/app/bitkoop_miner_server
+    environment:
+      - DATABASE_URL=postgresql://miner:miner_pass@postgres:5432/bitkoop_miner
+      - TLS_JS_URL=${TLS_JS_URL:-http://tls-js:3001}
+      - RUN_TIMEOUT_SECONDS=${RUN_TIMEOUT_SECONDS:-300}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notary-server:
+        condition: service_started
+      tls-js:
+        condition: service_healthy
+    command: python -m bitkoop_miner_server.worker
+
+volumes:
+  postgres_data:
