@@ -18,8 +18,7 @@ async def execute_validation(job_id: str, site_id: int, coupon_code: str) -> Dic
         raise ValueError(f"Site {site_id} not found")
 
     domain = site["domain"]
-    site_config = site.get("config") or {}
-    product_url = site_config.get("productUrl")
+    site_config = site.get("config")
 
     filename = f"proof_{site_id}_{coupon_code}_{job_id}"
     logger.info(f"Validating coupon {coupon_code} for domain {domain} (site_id={site_id})")
@@ -30,8 +29,8 @@ async def execute_validation(job_id: str, site_id: int, coupon_code: str) -> Dic
         "filename": filename
     }
 
-    if product_url:
-        payload["productUrl"] = product_url
+    if site_config:
+        payload["customActions"] = site_config
 
     async with httpx.AsyncClient(timeout=config.run_timeout_seconds) as client:
         response = await client.post(
